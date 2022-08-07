@@ -21,17 +21,36 @@ const mapping = {
     disconnect : {
         parameters : [ 'pointer' ] ,
         result : 'i16'
+    },
+
+    rootWindow : {
+        parameters : [ 'pointer' ] ,
+        result : 'u64'
+    },
+
+    windowProperty : {
+        parameters : [ 'pointer' , 'u64' , 'u64' , 'pointer' ] ,
+        result : 'pointer'
     }
 }
 
 
 const library = Deno.dlopen(shared,mapping);
 
-const { connect , disconnect } = library.symbols;
+const { disconnect , connect , query , windowProperty , rootWindow } = library.symbols;
 
 
 const isNull = (pointer) =>
     pointer.value === 0n;
+
+const toChars = (string) =>
+    [ ... string ];
+
+const toCharCode = (char) =>
+    char.charCodeAt();
+
+const toBytes = (string) => 
+    Uint8Array.from(toChars(string).map(toCharCode));
 
 function foo(){
 
@@ -44,13 +63,41 @@ function foo(){
 
     log('Doing foo');
 
+    log('Number of desktops: ',numberOfDesktops());
+    // log('Number workspaces: ',windowWorkspaceCount());
+
     const status = disconnect(connection);
 
     if(status !== Status.Success)
         throw `Couldn't disconnect properly. ${ statusMessage(status) }`;
 
     log('Closed Xorg Server');
-}   
+
+
+    function numberOfDesktops(){
+
+        const window = rootWindow(connection);
+
+        const data = windowProperty(connection,window,6,toBytes("_NET_NUMBER_OF_DESKTOPS"));
+
+        return new Deno
+            .UnsafePointerView(data)
+            .getUint32();
+    }
+
+    function windowWorkspaceCount(){
+
+        const window = rootWindow(connection);
+
+        const data = windowProperty(connection,window,6,toBytes("_WIN_WORKSPACE_COUNT"));
+        
+        return new Deno
+            .UnsafePointerView(data)
+            .getUint32();
+    }
+}
+
+
 
 
 foo();
