@@ -3,7 +3,9 @@
 
 import { fromFileUrl , dirname , join } from 'https://deno.land/std/path/mod.ts'
 import { Status , statusMessage } from '../Source/Module/Status.js'
+import { Types } from '../Source/Module/Types.js'
 
+const { UnsafePointerView } = Deno;
 const { log } = console;
 
 const 
@@ -63,8 +65,8 @@ function foo(){
 
     log('Doing foo');
 
-    log('Number of desktops: ',numberOfDesktops());
-    // log('Number workspaces: ',windowWorkspaceCount());
+    log('Number of desktops: ',desktopCount());
+    log('Current desktop: ',currentDesktop());
 
     const status = disconnect(connection);
 
@@ -74,25 +76,28 @@ function foo(){
     log('Closed Xorg Server');
 
 
-    function numberOfDesktops(){
-
-        const window = rootWindow(connection);
-
-        const data = windowProperty(connection,window,6,toBytes("_NET_NUMBER_OF_DESKTOPS"));
-
-        return new Deno
-            .UnsafePointerView(data)
-            .getUint32();
+    function desktopCount(){
+        return U32Property("_NET_NUMBER_OF_DESKTOPS");
+        // return generalProperty("_NET_NUMBER_OF_DESKTOPS",6).getUint32();
     }
 
-    function windowWorkspaceCount(){
+    function currentDesktop(){
+        return U32Property("_NET_CURRENT_DESKTOP");
+        // return generalProperty("_NET_CURRENT_DESKTOP",6).getUint32();
+    }
 
-        const window = rootWindow(connection);
+    function generalProperty(name,type){
 
-        const data = windowProperty(connection,window,6,toBytes("_WIN_WORKSPACE_COUNT"));
-        
-        return new Deno
-            .UnsafePointerView(data)
+        const 
+            window = rootWindow(connection) ,
+            data = windowProperty(connection,window,type,toBytes(name)) ,
+            view = new UnsafePointerView(data);
+
+        return view;
+    }
+
+    function U32Property(name){
+        return generalProperty(name,Types.Cardinal)
             .getUint32();
     }
 }
